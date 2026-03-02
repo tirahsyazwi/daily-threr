@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@1,400;1,600&family=Caveat:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-apple: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --font-hello: "Caveat", cursive;
+  
+  --color-pastel-red: #FFB7B2;
+  --color-pastel-orange: #FFDAC1;
+  --color-pastel-yellow: #E2F0CB;
+  --color-pastel-green: #B5EAD7;
+  --color-pastel-blue: #C7CEEA;
+  --color-soft-bg: #FDFCFB;
+}
+
+@layer base {
+  body {
+    @apply bg-soft-bg text-slate-800 font-sans antialiased;
+  }
+}
+
+.bouncy-hover {
+  @apply transition-transform duration-300 hover:scale-105 active:scale-95;
+}

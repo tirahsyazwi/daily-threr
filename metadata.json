@@ -1,0 +1,5 @@
+{
+  "name": "The Daily Three",
+  "description": "A low-pressure task manager that limits you to three active tasks to prevent overwhelm.",
+  "requestFramePermissions": []
+}
