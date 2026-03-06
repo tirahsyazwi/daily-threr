@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Trash2, History, X, Sparkles, Palette } from 'lucide-react';
+import { Plus, Check, Trash2, History, X, Sparkles, Palette, Download } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface Task {
@@ -39,6 +39,7 @@ export default function App() {
   const [showThemes, setShowThemes] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<Theme>(THEMES[0]);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // Load from local storage
   useEffect(() => {
@@ -56,10 +57,31 @@ export default function App() {
       if (theme) setCurrentTheme(theme);
     }
 
+    // Handle App Shortcuts / URL Params
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'history') {
+      setShowHistory(true);
+    }
+
+    // Handle Install Prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+
     // Hide splash screen after a delay
     const timer = setTimeout(() => setIsFirstLoad(false), 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   // Save to local storage
   useEffect(() => {
@@ -170,6 +192,15 @@ export default function App() {
           <p className="text-slate-500 text-sm mt-1">Focus on what matters today.</p>
         </div>
         <div className="flex gap-2">
+          {deferredPrompt && (
+            <button 
+              onClick={handleInstall}
+              className="p-2 rounded-full bg-slate-100 text-slate-600 bouncy-hover"
+              title="Install App"
+            >
+              <Download size={20} />
+            </button>
+          )}
           <button 
             onClick={() => setShowThemes(true)}
             className="p-2 rounded-full bg-slate-100 text-slate-600 bouncy-hover"
