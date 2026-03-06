@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Check, Trash2, History, X, Sparkles, Palette, Download } from 'lucide-react';
+import { Plus, Check, Trash2, History, X, Sparkles, Palette, Download, Coffee, Heart } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface Task {
@@ -40,6 +40,9 @@ export default function App() {
   const [currentTheme, setCurrentTheme] = useState<Theme>(THEMES[0]);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showSupport, setShowSupport] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   // Load from local storage
   useEffect(() => {
@@ -133,15 +136,44 @@ export default function App() {
     });
   };
 
+  const playSuccessSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+      oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.1); // C6
+
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.3);
+    } catch (e) {
+      console.log('Audio not supported or blocked');
+    }
+  };
+
   const toggleTask = (id: string) => {
     const task = tasks.find(t => t.id === id);
-    if (!task) return;
+    if (!task || completingId) return;
 
     if (!task.completed) {
-      // Completing a task: move to past log
-      setTasks(tasks.filter(t => t.id !== id));
-      setPastTasks([{ ...task, completed: true }, ...pastTasks].slice(0, 50)); // Keep last 50
-      triggerConfetti();
+      setCompletingId(id);
+      playSuccessSound();
+      
+      // Delay to show animation
+      setTimeout(() => {
+        setTasks(tasks.filter(t => t.id !== id));
+        setPastTasks([{ ...task, completed: true }, ...pastTasks].slice(0, 50)); // Keep last 50
+        triggerConfetti();
+        setCompletingId(null);
+      }, 400);
     }
   };
 
@@ -213,6 +245,15 @@ export default function App() {
           >
             <History size={20} />
           </button>
+          <button 
+            onClick={() => {
+              setShowSupport(true);
+              setShowQR(false);
+            }}
+            className="p-2 rounded-full bg-slate-100 text-slate-600 bouncy-hover"
+          >
+            <Heart size={20} />
+          </button>
         </div>
       </header>
 
@@ -268,9 +309,38 @@ export default function App() {
                 whileTap={{ scale: 0.8 }}
                 transition={{ type: "spring", stiffness: 400, damping: 10 }}
                 onClick={() => toggleTask(task.id)}
-                className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center bg-white text-transparent hover:border-emerald-400 hover:text-emerald-400 transition-all"
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                  completingId === task.id 
+                    ? 'text-white' 
+                    : 'bg-white border-slate-200 text-transparent'
+                }`}
+                style={{
+                  backgroundColor: completingId === task.id ? currentTheme.colors[index % 3] : undefined,
+                  borderColor: completingId === task.id ? currentTheme.colors[index % 3] : undefined,
+                }}
+                onMouseEnter={(e) => {
+                  if (completingId !== task.id) {
+                    e.currentTarget.style.borderColor = currentTheme.colors[index % 3];
+                    e.currentTarget.style.color = currentTheme.colors[index % 3];
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (completingId !== task.id) {
+                    e.currentTarget.style.borderColor = '';
+                    e.currentTarget.style.color = '';
+                  }
+                }}
               >
-                <Check size={18} strokeWidth={3} />
+                <motion.div
+                  initial={false}
+                  animate={{ 
+                    scale: completingId === task.id ? [1, 1.4, 1] : 1,
+                    rotate: completingId === task.id ? [0, 15, 0] : 0
+                  }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Check size={18} strokeWidth={3} />
+                </motion.div>
               </motion.button>
               <span className="flex-1 font-medium text-slate-700">{task.text}</span>
               <button
@@ -450,6 +520,130 @@ export default function App() {
           border-radius: 10px;
         }
       `}</style>
+      {/* Support Modal */}
+      <AnimatePresence>
+        {showSupport && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            onClick={() => setShowSupport(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 overflow-hidden flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold text-slate-800">
+                  {showQR ? 'Scan to Support' : 'Fuel the Focus'}
+                </h2>
+                <button 
+                  onClick={() => setShowSupport(false)}
+                  className="p-2 rounded-full hover:bg-slate-100 text-slate-400"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <AnimatePresence mode="wait">
+                {!showQR ? (
+                  <motion.div 
+                    key="support-main"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="text-center space-y-6"
+                  >
+                    <div 
+                      className="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
+                      style={{ backgroundColor: 'var(--theme-primary)' }}
+                    >
+                      <Coffee size={40} className="text-white" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-semibold text-slate-800">Enjoying the clarity?</h3>
+                      <p className="text-slate-500 leading-relaxed">
+                        Daily Three is built with love to help you focus. If it's helping you win your day, consider fueling the next cup of coffee!
+                      </p>
+                    </div>
+
+                    <div className="pt-4 space-y-3">
+                      <button 
+                        onClick={() => setShowQR(true)}
+                        className="w-full py-4 rounded-2xl bg-slate-900 text-white font-semibold flex items-center justify-center gap-2 bouncy-hover"
+                      >
+                        <Coffee size={20} />
+                        Buy me a coffee
+                      </button>
+                      <button 
+                        onClick={() => setShowSupport(false)}
+                        className="w-full py-4 rounded-2xl border-2 border-slate-100 text-slate-500 font-medium bouncy-hover"
+                      >
+                        Maybe later
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="support-qr"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-8"
+                  >
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-3 text-center">
+                        <div className="aspect-square bg-slate-50 rounded-2xl p-4 flex items-center justify-center border border-slate-100">
+                          <img 
+                            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SupportDailyThree_Option1" 
+                            alt="QR Code 1"
+                            className="w-full h-full object-contain mix-blend-multiply"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Option 1</p>
+                      </div>
+                      <div className="space-y-3 text-center">
+                        <div className="aspect-square bg-slate-50 rounded-2xl p-4 flex items-center justify-center border border-slate-100">
+                          <img 
+                            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SupportDailyThree_Option2" 
+                            alt="QR Code 2"
+                            className="w-full h-full object-contain mix-blend-multiply"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Option 2</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-sm text-slate-500 text-center px-4">
+                        Scan either code to support the development of Daily Three. Thank you for being part of this journey!
+                      </p>
+                      <button 
+                        onClick={() => setShowQR(false)}
+                        className="w-full py-4 rounded-2xl border-2 border-slate-100 text-slate-500 font-medium bouncy-hover"
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <p className="text-[10px] text-slate-300 uppercase tracking-widest font-medium text-center mt-8">
+                Your support keeps the focus sharp
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
